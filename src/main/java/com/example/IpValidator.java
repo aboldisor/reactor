@@ -1,18 +1,24 @@
 package com.example;
 
-import io.netty.channel.ChannelOption;
-import io.netty.handler.codec.http.HttpMethod;
-import io.netty.handler.codec.http.HttpResponseStatus;
+import io.netty.bootstrap.Bootstrap;
+import io.netty.buffer.ByteBuf;
+import io.netty.channel.*;
+import io.netty.channel.nio.NioEventLoopGroup;
+import io.netty.channel.socket.nio.NioSocketChannel;
+import io.netty.handler.codec.http.*;
+import io.netty.handler.proxy.HttpProxyHandler;
 import io.netty.handler.timeout.IdleStateHandler;
 import org.apache.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.mongodb.core.ReactiveMongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
+import org.springframework.http.HttpHeaders;
 import org.springframework.stereotype.Component;
 import reactor.core.scheduler.Schedulers;
 import reactor.ipc.netty.http.client.HttpClient;
 
+import java.net.*;
 import java.time.Duration;
 import java.util.Date;
 import java.util.Map;
@@ -32,18 +38,24 @@ public class IpValidator {
         Query query = Query.query(new Criteria().orOperator(Criteria.where("state").is("grab"),
                                     Criteria.where("validate_date").lt(new Date())));
 
-        reactiveMongoTemplate.find(query, Map.class, "ip_pool_reactor")//这里必须指明collection,否则会根据entityClass去确定,导致查不到数据
+        reactiveMongoTemplate.find(query, Map.class, "ip_pool")//这里必须指明collection,否则会根据entityClass去确定,导致查不到数据
                 .publishOn(Schedulers.elastic())
                 .subscribeOn(Schedulers.elastic())
-//                .take(100)
+                .take(1)
                 .subscribe(record -> {
                     String ip = String.valueOf(record.get("ip"));
                     String port = String.valueOf(record.get("port"));
-                    HttpClient.create(opt -> opt.option(ChannelOption.CONNECT_TIMEOUT_MILLIS, 50*1000).proxy(ip, Integer.parseInt(port)))
+                    HttpClient.create(opt -> opt
+//                            .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, 50*1000)
+//                            .proxy(ip, Integer.parseInt(port)))
+//                            .proxy(new InetSocketAddress(ip, Integer.parseInt(port))))
+                            .connect(new InetSocketAddress("120.52.72.58", 80)))
                             .request(HttpMethod.GET, "http://httpbin.org/ip", request ->
-                                    request.context(ctx -> ctx.addHandlerFirst(new IdleStateHandler(0,0,50))))
-                            .timeout(Duration.ofSeconds(50*1000))
+                                    request.context(ctx -> ctx.addHandlerFirst(new IdleStateHandler(0,0,50)))
+                            )
+//                            .timeout(Duration.ofSeconds(50*1000))
                             .doOnError((e) -> {
+                                e.printStackTrace();
                                 record.put("state", "invalid");
                                 record.put("validate_date", new Date());
                                 System.out.println(ip+":"+port+"...invalid1");
@@ -53,7 +65,7 @@ public class IpValidator {
                             .subscribe(res -> {
                                 res.receiveContent().collect(new ContentCollector()).subscribe(System.out::println);
                                 Date s = new Date();
-                                HttpClient.create(opt -> opt.proxy(ip, Integer.parseInt(port)))
+                                HttpClient.create(opt -> opt.connect(ip, Integer.parseInt(port)))
                                         .request(HttpMethod.GET, "http://www.baidu.com", request ->
                                                 request.context(ctx -> ctx.addHandlerFirst(new IdleStateHandler(0,0,20))))
                                         .doOnError((e) -> {
