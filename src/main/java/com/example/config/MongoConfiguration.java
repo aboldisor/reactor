@@ -1,4 +1,4 @@
-package com.example;
+package com.example.config;
 
 import com.mongodb.reactivestreams.client.MongoClients;
 import org.springframework.context.annotation.Bean;

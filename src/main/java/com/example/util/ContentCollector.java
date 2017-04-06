@@ -1,4 +1,4 @@
-package com.example;
+package com.example.util;
 
 import io.netty.handler.codec.http.HttpContent;
 

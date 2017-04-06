@@ -1,4 +1,4 @@
-package com.example;
+package com.example.util;
 
 import org.springframework.util.Assert;
 import reactor.core.publisher.FluxSink;
