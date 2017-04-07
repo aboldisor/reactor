@@ -58,7 +58,6 @@ public class ReactorNettyTests {
                     .doOnNext(html -> {
                         Flux.fromIterable(Jsoup.parse(html).select("#ip_list > tbody > tr"))
                                 .filter(element -> element.select("td").size() > 0)
-                                .map(ReactorApplication.XiciDaili::convertToMap)
                                 //.buffer(10)
                                 .subscribe();
                     })
