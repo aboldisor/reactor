@@ -57,8 +57,9 @@ public class FunctionalTests {
                 .flatMap(r -> r.receive()
                         .retain()
                         .asString()
-                        .limitRate(1))
-                .reduce(String::concat)
+                        .limitRate(1)
+                        .reduce(String::concat)
+                )
                 .log()
                 .subscribe(u->System.out.println(u));
         //block for http result
